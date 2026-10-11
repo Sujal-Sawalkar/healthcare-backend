@@ -1,0 +1,308 @@
+{% verbatim %}<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Healthcare Portal</title>
+<style>
+:root{--bg:#f3f6fa;--card:#fff;--ink:#1c2733;--muted:#6b7785;--line:#e2e8f0;--brand:#0d9488;--brand-d:#0f766e;--danger:#dc2626;--ok:#16a34a}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--ink)}
+header{background:var(--brand);color:#fff;padding:14px 24px;display:flex;justify-content:space-between;align-items:center}
+header h1{margin:0;font-size:1.15rem}
+#who{font-size:.9rem;display:flex;gap:12px;align-items:center}
+main{max-width:1050px;margin:24px auto;padding:0 16px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:20px;margin-bottom:20px}
+.card h2{margin:0 0 14px;font-size:1.05rem}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:20px}
+label{display:block;font-size:.8rem;color:var(--muted);margin-bottom:4px}
+input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font:inherit;background:#fff}
+input:focus,select:focus,textarea:focus{outline:2px solid #99f6e4;border-color:var(--brand)}
+textarea{resize:vertical;min-height:38px}
+button{font:inherit;cursor:pointer;border:0;border-radius:7px;padding:9px 16px;background:var(--brand);color:#fff}
+button:hover{background:var(--brand-d)}
+button.ghost{background:#e8eef4;color:var(--ink)}
+button.ghost:hover{background:#d9e2ea}
+button.danger{background:var(--danger)}
+button.sm{padding:5px 10px;font-size:.8rem}
+.actions{margin-top:14px;display:flex;gap:8px}
+nav{display:flex;gap:6px;margin-bottom:20px;flex-wrap:wrap}
+nav button{background:#e8eef4;color:var(--ink)}
+nav button.active{background:var(--brand);color:#fff}
+table{width:100%;border-collapse:collapse;font-size:.9rem}
+th,td{text-align:left;padding:9px 8px;border-bottom:1px solid var(--line);vertical-align:top}
+th{color:var(--muted);font-weight:600;font-size:.78rem;text-transform:uppercase}
+td.act{white-space:nowrap}
+.empty{color:var(--muted);padding:14px 0}
+.scroll{overflow-x:auto}
+.hidden{display:none!important}
+#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);padding:11px 18px;border-radius:8px;color:#fff;opacity:0;pointer-events:none;transition:opacity .2s;max-width:90%;z-index:9}
+#toast.show{opacity:1}
+#toast.ok{background:var(--ok)}
+#toast.err{background:var(--danger)}
+.row{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
+.row>div{flex:1;min-width:180px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🩺 Healthcare Portal</h1>
+  <div id="who" class="hidden"><span id="whoName"></span><button class="ghost sm" onclick="logout()">Logout</button></div>
+</header>
+
+<main>
+  <!-- AUTH -->
+  <section id="auth" class="two">
+    <form class="card" id="loginForm">
+      <h2>Login</h2>
+      <div class="grid" style="grid-template-columns:1fr">
+        <div><label>Email</label><input name="email" type="email" required></div>
+        <div><label>Password</label><input name="password" type="password" required></div>
+      </div>
+      <div class="actions"><button>Login</button></div>
+    </form>
+    <form class="card" id="registerForm">
+      <h2>Register</h2>
+      <div class="grid" style="grid-template-columns:1fr">
+        <div><label>Name</label><input name="name" required></div>
+        <div><label>Email</label><input name="email" type="email" required></div>
+        <div><label>Password (min 8 chars)</label><input name="password" type="password" minlength="8" required></div>
+      </div>
+      <div class="actions"><button>Create account</button></div>
+    </form>
+  </section>
+
+  <!-- APP -->
+  <section id="app" class="hidden">
+    <nav id="tabs">
+      <button data-tab="patients" class="active">Patients</button>
+      <button data-tab="doctors">Doctors</button>
+      <button data-tab="mappings">Assignments</button>
+    </nav>
+
+    <!-- PATIENTS -->
+    <div id="tab-patients">
+      <form class="card" id="f-patients">
+        <h2 id="t-patients">Add patient</h2>
+        <input type="hidden" name="rid">
+        <div class="grid">
+          <div><label>Name *</label><input name="name" required></div>
+          <div><label>Age *</label><input name="age" type="number" min="0" max="130" required></div>
+          <div><label>Gender *</label>
+            <select name="gender" required><option value="">Select…</option><option value="M">Male</option><option value="F">Female</option><option value="O">Other</option></select></div>
+          <div><label>Phone</label><input name="phone" placeholder="digits only"></div>
+          <div><label>Address</label><textarea name="address"></textarea></div>
+          <div><label>Medical history</label><textarea name="medical_history"></textarea></div>
+        </div>
+        <div class="actions"><button id="b-patients">Add patient</button><button type="button" class="ghost hidden" id="c-patients" onclick="cancelEdit('patients')">Cancel</button></div>
+      </form>
+      <div class="card"><h2>My patients</h2><div class="scroll" id="list-patients"></div></div>
+    </div>
+
+    <!-- DOCTORS -->
+    <div id="tab-doctors" class="hidden">
+      <form class="card" id="f-doctors">
+        <h2 id="t-doctors">Add doctor</h2>
+        <input type="hidden" name="rid">
+        <div class="grid">
+          <div><label>Name *</label><input name="name" required></div>
+          <div><label>Specialization *</label><input name="specialization" required></div>
+          <div><label>Email *</label><input name="email" type="email" required></div>
+          <div><label>Phone</label><input name="phone" placeholder="digits only"></div>
+          <div><label>Experience (years)</label><input name="experience_years" type="number" min="0" max="70" value="0"></div>
+        </div>
+        <div class="actions"><button id="b-doctors">Add doctor</button><button type="button" class="ghost hidden" id="c-doctors" onclick="cancelEdit('doctors')">Cancel</button></div>
+      </form>
+      <div class="card"><h2>All doctors</h2><p style="margin:0 0 10px;color:var(--muted);font-size:.85rem">You can edit or delete only the doctors you added.</p><div class="scroll" id="list-doctors"></div></div>
+    </div>
+
+    <!-- MAPPINGS -->
+    <div id="tab-mappings" class="hidden">
+      <form class="card" id="f-mappings">
+        <h2>Assign doctor to patient</h2>
+        <div class="row">
+          <div><label>Patient</label><select name="patient" id="m-patient" required></select></div>
+          <div><label>Doctor</label><select name="doctor" id="m-doctor" required></select></div>
+          <div style="flex:0"><button>Assign</button></div>
+        </div>
+      </form>
+      <div class="card">
+        <h2>Assignments</h2>
+        <div class="row" style="margin-bottom:12px"><div style="max-width:320px"><label>Filter by patient</label><select id="m-filter"></select></div></div>
+        <div class="scroll" id="list-mappings"></div>
+      </div>
+    </div>
+  </section>
+</main>
+<div id="toast"></div>
+
+<script>
+const API = '/api';
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let token = localStorage.getItem('access');
+let user = JSON.parse(localStorage.getItem('user') || 'null');
+const state = { patients: [], doctors: [], mappings: [] };
+
+function toast(msg, type = 'ok') {
+  const t = $('#toast');
+  t.textContent = msg; t.className = 'show ' + type;
+  clearTimeout(toast.h); toast.h = setTimeout(() => t.className = '', 3500);
+}
+function fmtErr(e) {
+  if (!e || !e.data) return 'Network error. Is the server running?';
+  const d = e.data;
+  if (typeof d === 'string') return d;
+  if (d.detail) return d.detail;
+  return Object.entries(d).map(([k, v]) => `${k}: ${[].concat(v).join(' ')}`).join(' | ');
+}
+async function api(method, path, body) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (token) headers.Authorization = 'Bearer ' + token;
+  let res;
+  try { res = await fetch(API + path, { method, headers, body: body ? JSON.stringify(body) : undefined }); }
+  catch { throw { data: null }; }
+  let data = null;
+  if (res.status !== 204) { try { data = await res.json(); } catch {} }
+  if (res.status === 401 && token && !path.startsWith('/auth/')) { logout(); toast('Session expired. Please log in again.', 'err'); }
+  if (!res.ok) throw { status: res.status, data };
+  return data;
+}
+
+/* ---------- auth ---------- */
+const formObj = f => Object.fromEntries(new FormData(f));
+async function doLogin(creds) {
+  const d = await api('POST', '/auth/login/', creds);
+  token = d.access; user = d.user;
+  localStorage.setItem('access', token); localStorage.setItem('user', JSON.stringify(user));
+  showApp();
+}
+$('#loginForm').onsubmit = async e => {
+  e.preventDefault();
+  try { await doLogin(formObj(e.target)); toast('Logged in'); } catch (err) { toast(fmtErr(err), 'err'); }
+};
+$('#registerForm').onsubmit = async e => {
+  e.preventDefault();
+  const creds = formObj(e.target);
+  try {
+    await api('POST', '/auth/register/', creds);
+    await doLogin({ email: creds.email, password: creds.password });
+    toast('Account created. You are logged in.');
+  } catch (err) { toast(fmtErr(err), 'err'); }
+};
+function logout() {
+  token = null; user = null; localStorage.removeItem('access'); localStorage.removeItem('user');
+  $('#app').classList.add('hidden'); $('#who').classList.add('hidden'); $('#auth').classList.remove('hidden');
+}
+function showApp() {
+  $('#auth').classList.add('hidden'); $('#app').classList.remove('hidden');
+  $('#who').classList.remove('hidden'); $('#whoName').textContent = user.name + ' (' + user.email + ')';
+  loadAll();
+}
+
+/* ---------- tabs ---------- */
+$('#tabs').onclick = e => {
+  const tab = e.target.dataset.tab; if (!tab) return;
+  document.querySelectorAll('#tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
+  ['patients', 'doctors', 'mappings'].forEach(t => $('#tab-' + t).classList.toggle('hidden', t !== tab));
+};
+
+/* ---------- data ---------- */
+async function loadAll() {
+  try {
+    [state.patients, state.doctors, state.mappings] = await Promise.all([
+      api('GET', '/patients/'), api('GET', '/doctors/'), api('GET', '/mappings/')]);
+    renderAll();
+  } catch (err) { if (token) toast(fmtErr(err), 'err'); }
+}
+function table(cols, rows) {
+  if (!rows.length) return '<div class="empty">Nothing here yet.</div>';
+  return '<table><thead><tr>' + cols.map(c => `<th>${c}</th>`).join('') + '</tr></thead><tbody>' + rows.join('') + '</tbody></table>';
+}
+const GENDER = { M: 'Male', F: 'Female', O: 'Other' };
+
+function renderAll() {
+  $('#list-patients').innerHTML = table(['Name', 'Age', 'Gender', 'Phone', 'Address', 'History', ''],
+    state.patients.map(p => `<tr><td>${esc(p.name)}</td><td>${p.age}</td><td>${GENDER[p.gender] || ''}</td><td>${esc(p.phone)}</td><td>${esc(p.address)}</td><td>${esc(p.medical_history)}</td>
+      <td class="act"><button class="sm ghost" onclick="editEntity('patients',${p.id})">Edit</button> <button class="sm danger" onclick="delEntity('patients',${p.id})">Delete</button></td></tr>`));
+
+  $('#list-doctors').innerHTML = table(['Name', 'Specialization', 'Email', 'Phone', 'Exp (yrs)', ''],
+    state.doctors.map(d => `<tr><td>${esc(d.name)}</td><td>${esc(d.specialization)}</td><td>${esc(d.email)}</td><td>${esc(d.phone)}</td><td>${d.experience_years}</td>
+      <td class="act">${d.created_by === user.id ? `<button class="sm ghost" onclick="editEntity('doctors',${d.id})">Edit</button> <button class="sm danger" onclick="delEntity('doctors',${d.id})">Delete</button>` : ''}</td></tr>`));
+
+  const opt = (arr, label) => arr.map(x => `<option value="${x.id}">${esc(label(x))}</option>`).join('');
+  $('#m-patient').innerHTML = '<option value="">Select patient…</option>' + opt(state.patients, p => p.name);
+  $('#m-doctor').innerHTML = '<option value="">Select doctor…</option>' + opt(state.doctors, d => `Dr. ${d.name} (${d.specialization})`);
+  const cur = $('#m-filter').value;
+  $('#m-filter').innerHTML = '<option value="">All my patients</option>' + opt(state.patients, p => p.name);
+  $('#m-filter').value = state.patients.some(p => String(p.id) === cur) ? cur : '';
+  renderMappings();
+}
+async function renderMappings() {
+  const pid = $('#m-filter').value;
+  let rows = state.mappings;
+  if (pid) { try { rows = await api('GET', '/mappings/' + pid + '/'); } catch (err) { toast(fmtErr(err), 'err'); return; } }
+  $('#list-mappings').innerHTML = table(['Patient', 'Doctor', 'Specialization', 'Assigned', ''],
+    rows.map(m => `<tr><td>${esc(m.patient_name)}</td><td>Dr. ${esc(m.doctor_detail.name)}</td><td>${esc(m.doctor_detail.specialization)}</td>
+      <td>${new Date(m.assigned_at).toLocaleString()}</td><td class="act"><button class="sm danger" onclick="delMapping(${m.id})">Remove</button></td></tr>`));
+}
+$('#m-filter').onchange = renderMappings;
+
+/* ---------- patients & doctors CRUD ---------- */
+const NUM = ['age', 'experience_years'];
+const LABEL = { patients: 'patient', doctors: 'doctor' };
+['patients', 'doctors'].forEach(kind => {
+  $('#f-' + kind).onsubmit = async e => {
+    e.preventDefault();
+    const b = formObj(e.target), id = b.rid; delete b.rid;
+    NUM.forEach(k => { if (k in b) b[k] = Number(b[k]); });
+    try {
+      if (id) await api('PUT', `/${kind}/${id}/`, b); else await api('POST', `/${kind}/`, b);
+      toast(`${LABEL[kind]} ${id ? 'updated' : 'added'}`);
+      cancelEdit(kind); await loadAll();
+    } catch (err) { toast(fmtErr(err), 'err'); }
+  };
+});
+function editEntity(kind, id) {
+  const item = state[kind].find(x => x.id === id), f = $('#f-' + kind);
+  Object.keys(item).forEach(k => { if (f.elements[k]) f.elements[k].value = item[k] ?? ''; });
+  f.elements.rid.value = id;
+  $('#t-' + kind).textContent = 'Edit ' + LABEL[kind];
+  $('#b-' + kind).textContent = 'Update ' + LABEL[kind];
+  $('#c-' + kind).classList.remove('hidden');
+  f.scrollIntoView({ behavior: 'smooth' });
+}
+function cancelEdit(kind) {
+  const f = $('#f-' + kind); f.reset(); f.elements.rid.value = '';
+  $('#t-' + kind).textContent = 'Add ' + LABEL[kind];
+  $('#b-' + kind).textContent = 'Add ' + LABEL[kind];
+  $('#c-' + kind).classList.add('hidden');
+}
+async function delEntity(kind, id) {
+  if (!confirm(`Delete this ${LABEL[kind]}? Their assignments will be removed too.`)) return;
+  try { await api('DELETE', `/${kind}/${id}/`); toast(LABEL[kind] + ' deleted'); await loadAll(); }
+  catch (err) { toast(fmtErr(err), 'err'); }
+}
+
+/* ---------- mappings ---------- */
+$('#f-mappings').onsubmit = async e => {
+  e.preventDefault();
+  const b = formObj(e.target);
+  try {
+    await api('POST', '/mappings/', { patient: Number(b.patient), doctor: Number(b.doctor) });
+    toast('Doctor assigned'); await loadAll();
+  } catch (err) { toast(fmtErr(err), 'err'); }
+};
+async function delMapping(id) {
+  if (!confirm('Remove this doctor from the patient?')) return;
+  try { await api('DELETE', `/mappings/${id}/`); toast('Assignment removed'); await loadAll(); }
+  catch (err) { toast(fmtErr(err), 'err'); }
+}
+
+/* ---------- init ---------- */
+if (token && user) showApp();
+</script>
+</body>
+</html>
+{% endverbatim %}
